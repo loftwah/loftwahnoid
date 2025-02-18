@@ -32,49 +32,68 @@ class PowerUp:
         self.rect.y = self.y - self.height // 2
 
     def draw(self, screen):
-        # Draw power-up with a distinctive shape for each type
+        # Add pulsing effect
+        current_time = pygame.time.get_ticks()
+        scale = 1.0 + 0.1 * (current_time % 1000) / 1000  # Pulse between 1.0 and 1.1
+        scaled_width = int(self.width * scale)
+        scaled_height = int(self.height * scale)
+        scaled_rect = pygame.Rect(
+            self.x - scaled_width // 2,
+            self.y - scaled_height // 2,
+            scaled_width,
+            scaled_height
+        )
+        
+        # Draw glowing outline
+        pygame.draw.rect(screen, WHITE, scaled_rect, 2)
         pygame.draw.rect(screen, self.color, self.rect)
         
-        # Draw an icon inside based on power-up type
+        # Enhanced icons with "Loftwahnoid" branding
+        font = pygame.font.SysFont(None, 12)
         if self.power_type == self.WIDE_PADDLE:
-            # Draw horizontal line
             pygame.draw.line(screen, WHITE, 
-                           (self.rect.left + 4, self.rect.centery),
-                           (self.rect.right - 4, self.rect.centery), 2)
+                            (self.rect.left + 4, self.rect.centery),
+                            (self.rect.right - 4, self.rect.centery), 2)
+            text = font.render("L", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 3, self.rect.centery - 5))
         elif self.power_type == self.EXTRA_LIFE:
-            # Draw a plus symbol
             pygame.draw.line(screen, WHITE,
-                           (self.rect.centerx, self.rect.top + 4),
-                           (self.rect.centerx, self.rect.bottom - 4), 2)
+                            (self.rect.centerx, self.rect.top + 4),
+                            (self.rect.centerx, self.rect.bottom - 4), 2)
             pygame.draw.line(screen, WHITE,
-                           (self.rect.left + 4, self.rect.centery),
-                           (self.rect.right - 4, self.rect.centery), 2)
+                            (self.rect.left + 4, self.rect.centery),
+                            (self.rect.right - 4, self.rect.centery), 2)
+            text = font.render("L", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 3, self.rect.centery - 5))
         elif self.power_type == self.STICKY_PADDLE:
-            # Draw dots pattern
             for x in range(self.rect.left + 5, self.rect.right - 2, 5):
-                pygame.draw.circle(screen, WHITE, (x, self.rect.centery), 1)
+                pygame.draw.circle(screen, WHITE, (x, self.rect.centery), 2)
+            text = font.render("L", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 3, self.rect.centery - 5))
         elif self.power_type == self.SHOOTING_PADDLE:
-            # Draw arrow up symbol
             points = [
                 (self.rect.centerx, self.rect.top + 4),
                 (self.rect.centerx - 4, self.rect.centery),
                 (self.rect.centerx + 4, self.rect.centery)
             ]
             pygame.draw.polygon(screen, WHITE, points)
+            text = font.render("L", True, WHITE)
+            screen.blit(text, (self.rect.centerx - 3, self.rect.bottom - 10))
 
     def apply_effect(self, paddle, lives):
-        # Reset all paddle-altering states first if it's a paddle power-up
         if self.power_type in [self.WIDE_PADDLE, self.STICKY_PADDLE, self.SHOOTING_PADDLE]:
-            paddle.reset_width()  # Resets width, sticky, shooting, and bullets
+            paddle.reset_width()
         
         if self.power_type == self.WIDE_PADDLE:
-            paddle.rect.width = min(paddle.rect.width + 50, 200)
+            paddle.rect.width = min(paddle.rect.width + 75, 250)  # Increased from 50->75, 200->250
         elif self.power_type == self.EXTRA_LIFE:
-            lives += 1
+            lives += 2  # Give 2 lives instead of 1
         elif self.power_type == self.STICKY_PADDLE:
             paddle.sticky = True
             paddle.sticky_timer = pygame.time.get_ticks()
+            paddle.sticky_duration = 15000  # Increased to 15s
         elif self.power_type == self.SHOOTING_PADDLE:
             paddle.shooting = True
             paddle.shoot_timer = pygame.time.get_ticks()
+            paddle.shoot_cooldown = 500  # Faster shooting (was 750)
         return lives 

@@ -1,5 +1,5 @@
 import pygame
-from ..constants import WIDTH, WHITE, YELLOW
+from ..constants import WIDTH, WHITE, YELLOW, BLACK
 
 class Paddle:
     def __init__(self, x, y, width, height, speed):
@@ -53,12 +53,17 @@ class Paddle:
 
     def draw(self, screen):
         pygame.draw.rect(screen, WHITE, self.rect)
+        font = pygame.font.SysFont(None, 20)
+        text = font.render("Loftwahnoid", True, BLACK)
+        text_x = self.rect.centerx - text.get_width() // 2
+        text_y = self.rect.centery - text.get_height() // 2
+        screen.blit(text, (text_x, text_y))
+        
+        # Original power-up indicators
         if self.sticky:
-            # Draw sticky indicator dots
             for x in range(self.rect.left + 10, self.rect.right - 5, 10):
                 pygame.draw.circle(screen, YELLOW, (x, self.rect.top + 2), 2)
         if self.shooting:
-            # Draw shooting indicator triangles
             pygame.draw.polygon(screen, YELLOW, [
                 (self.rect.left + 5, self.rect.top + 5),
                 (self.rect.left + 10, self.rect.top),
@@ -69,7 +74,6 @@ class Paddle:
                 (self.rect.right - 10, self.rect.top),
                 (self.rect.right - 5, self.rect.top + 5)
             ])
-        # Draw bullets
         for bullet in self.bullets:
             bullet.draw(screen)
 

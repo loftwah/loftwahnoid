@@ -1,7 +1,7 @@
 import pygame
 import random
 import os
-from .constants import WIDTH, HEIGHT, FPS, BLACK, WHITE, RED, GREEN, BLUE
+from .constants import WIDTH, HEIGHT, FPS, BLACK, WHITE, RED, GREEN, BLUE, YELLOW
 from .sprites.paddle import Paddle
 from .sprites.ball import Ball
 from .sprites.brick import Brick
@@ -13,9 +13,13 @@ from .sprites.powerup import PowerUp
 def game_loop(screen):
     # Initialize mixer and load sounds
     pygame.mixer.init()
+    pygame.font.init()  # Add this line to initialize font system
     
     # Get the directory where the sounds are stored
     sound_dir = os.path.join(os.path.dirname(__file__), 'sounds')
+    
+    # Initialize fonts after pygame.font.init()
+    font = pygame.font.SysFont(None, 36)
     
     # Initialize with empty sounds in case files are missing
     sounds = {
@@ -262,21 +266,18 @@ def game_loop(screen):
             power_up.draw(screen)
 
         # Draw score, lives and level with better layout
-        font = pygame.font.SysFont(None, 36)
-        
-        # Left align score
         score_text = font.render(f'Score: {score}', True, WHITE)
-        screen.blit(score_text, (20, 20))
+        screen.blit(score_text, (20, 20))  # Back to original y=20
         
         # Center align lives
         lives_text = font.render(f'Lives: {lives}', True, WHITE)
         lives_x = WIDTH // 2 - lives_text.get_width() // 2
-        screen.blit(lives_text, (lives_x, 20))
+        screen.blit(lives_text, (lives_x, 20))  # Back to original y=20
         
         # Right align level
         level_text = font.render(f'Level: {level}', True, WHITE)
         level_x = WIDTH - level_text.get_width() - 20
-        screen.blit(level_text, (level_x, 20))
+        screen.blit(level_text, (level_x, 20))  # Back to original y=20
 
         # Update paddle drawing to handle flashing
         current_time = pygame.time.get_ticks()
@@ -287,6 +288,9 @@ def game_loop(screen):
                 paddle.draw(screen)
         else:
             paddle.draw(screen)
+
+        # Draw power-up status below lives
+        draw_powerup_status(screen, paddle, font)
 
         if game_over:
             # Get player name
@@ -307,3 +311,22 @@ def game_loop(screen):
             return
 
         pygame.display.flip() 
+
+def draw_powerup_status(screen, paddle, font):
+    active_powers = []
+    current_time = pygame.time.get_ticks()
+    
+    if paddle.sticky:
+        time_left = (paddle.sticky_duration - (current_time - paddle.sticky_timer)) // 1000
+        active_powers.append(f"Sticky: {max(0, time_left)}s")
+    if paddle.shooting:
+        time_left = (7000 - (current_time - paddle.shoot_timer)) // 1000  # 7s duration
+        active_powers.append(f"Shooting: {max(0, time_left)}s")
+    if paddle.rect.width > paddle.original_width:
+        active_powers.append("Wide Paddle")
+    
+    # Draw power-up status below lives (back to original y=60)
+    for i, power in enumerate(active_powers):
+        power_text = font.render(power, True, YELLOW)
+        power_x = WIDTH // 2 - power_text.get_width() // 2
+        screen.blit(power_text, (power_x, 60 + i * 30))  # Back to original y=60 

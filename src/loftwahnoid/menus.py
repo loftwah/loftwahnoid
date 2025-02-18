@@ -23,8 +23,9 @@ def pause_menu(screen):
 def main_menu():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Loftwahnoid")
-    menu = pygame_menu.Menu('Loftwahnoid', WIDTH, HEIGHT, theme=pygame_menu.themes.THEME_DARK)
+    pygame.display.set_caption("Loftwahnoid Supreme")
+    menu = pygame_menu.Menu('Loftwahnoid Supreme', WIDTH, HEIGHT, theme=pygame_menu.themes.THEME_DARK)
+    menu.add.label("Welcome to Loftwahnoid!")
     menu.add.button('Play', lambda: game_loop(screen))
     menu.add.button('Quit', pygame_menu.events.EXIT)
     menu.mainloop(screen) 

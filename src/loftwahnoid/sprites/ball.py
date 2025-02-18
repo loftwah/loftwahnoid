@@ -1,0 +1,29 @@
+import pygame
+import random
+from ..constants import WIDTH, YELLOW
+
+class Ball:
+    def __init__(self, x, y, radius, speed):
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.speed = speed
+        self.vel_x = random.choice([-1, 1]) * speed
+        self.vel_y = -speed
+
+    def update(self):
+        self.x += self.vel_x
+        self.y += self.vel_y
+        # Bounce off left/right walls
+        if self.x - self.radius <= 0 or self.x + self.radius >= WIDTH:
+            self.vel_x = -self.vel_x
+        # Bounce off top wall
+        if self.y - self.radius <= 0:
+            self.vel_y = -self.vel_y
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, YELLOW, (int(self.x), int(self.y)), self.radius)
+
+    def get_rect(self):
+        return pygame.Rect(self.x - self.radius, self.y - self.radius,
+                         self.radius * 2, self.radius * 2) 

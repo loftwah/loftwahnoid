@@ -1,7 +1,5 @@
-import pygame
 import pygame_menu
 from .constants import WIDTH, HEIGHT
-from .game import game_loop
 
 def pause_menu(screen):
     resume = [True]
@@ -18,13 +16,4 @@ def pause_menu(screen):
     menu.add.button('Resume', resume_game)
     menu.add.button('Quit to Main Menu', quit_to_menu)
     menu.mainloop(screen)
-    return resume[0]
-
-def main_menu():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Loftwahnoid")
-    menu = pygame_menu.Menu('Loftwahnoid', WIDTH, HEIGHT, theme=pygame_menu.themes.THEME_DARK)
-    menu.add.button('Play', lambda: game_loop(screen))
-    menu.add.button('Quit', pygame_menu.events.EXIT)
-    menu.mainloop(screen) 
+    return resume[0] 

@@ -8,8 +8,14 @@ class Ball:
         self.y = y
         self.radius = radius
         self.speed = speed
-        self.vel_x = random.choice([-1, 1]) * speed
-        self.vel_y = -speed
+        self.vel_x = 0  # Start with no velocity
+        self.vel_y = 0  # Start with no velocity
+        self.started = False  # Ball starts inactive
+
+    def start(self):
+        self.vel_x = random.choice([-1, 1]) * self.speed
+        self.vel_y = -self.speed
+        self.started = True
 
     def update(self):
         self.x += self.vel_x

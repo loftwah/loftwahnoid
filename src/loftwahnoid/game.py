@@ -8,6 +8,7 @@ from .sprites.brick import Brick
 from .pause import pause_menu
 from .highscores import HighScoreManager
 import pygame_menu
+from .sprites.powerup import PowerUp
 
 def game_loop(screen):
     # Initialize mixer and load sounds
@@ -21,7 +22,8 @@ def game_loop(screen):
         'music': None,
         'ding': None,
         'death': None,
-        'life': None
+        'life': None,
+        'powerup': None
     }
     
     # Try to load sounds if they exist
@@ -30,7 +32,8 @@ def game_loop(screen):
             'music': pygame.mixer.Sound(os.path.join(sound_dir, 'music.wav')),
             'ding': pygame.mixer.Sound(os.path.join(sound_dir, 'ding.wav')),
             'death': pygame.mixer.Sound(os.path.join(sound_dir, 'death.wav')),
-            'life': pygame.mixer.Sound(os.path.join(sound_dir, 'life.wav'))
+            'life': pygame.mixer.Sound(os.path.join(sound_dir, 'life.wav')),
+            'powerup': pygame.mixer.Sound(os.path.join(sound_dir, 'powerup.wav'))
         }
     except:
         print("Warning: Some sound files could not be loaded")
@@ -52,6 +55,19 @@ def game_loop(screen):
     # Play music at start
     if sounds['music']:
         sounds['music'].play()
+
+    # Add near the top of game_loop, after sounds initialization
+    # Power-up spawn rates (40% total chance of any power-up spawning per brick)
+    POWERUP_SPAWN_RATES = {
+        PowerUp.WIDE_PADDLE: 0.15,      # 15% chance
+        PowerUp.EXTRA_LIFE: 0.05,       # 5% chance (rarer)
+        PowerUp.STICKY_PADDLE: 0.10,    # 10% chance
+        PowerUp.SHOOTING_PADDLE: 0.10   # 10% chance
+    }
+
+    # Add after bricks/power_ups initialization
+    sticky_just_activated = False
+    paddle_flash_timer = None
 
     def generate_level(level):
         bricks = []
@@ -84,6 +100,7 @@ def game_loop(screen):
 
     # Initial brick creation
     bricks = generate_level(level)
+    power_ups = []  # Add this line to store active power-ups
 
     running = True
     game_over = False
@@ -99,14 +116,39 @@ def game_loop(screen):
                     if not pause_menu(screen):
                         running = False
                         return
-                elif event.key == pygame.K_SPACE and not ball.started:
-                    ball.start()  # Initialize velocities when starting
+                elif event.key == pygame.K_SPACE:
+                    if not ball.started:
+                        ball.start()  # Initialize velocities when starting
+                    elif paddle.sticky and ball.stuck_to_paddle:
+                        # Release ball from sticky paddle
+                        ball.started = True
+                        ball.stuck_to_paddle = False
+                        ball.vel_y = -abs(ball.vel_y)  # Ensure ball goes upward
+                        offset = (ball.x - paddle.rect.centerx) / (paddle.rect.width / 2)
+                        ball.vel_x = ball.speed * offset
 
         keys = pygame.key.get_pressed()
         paddle.update(keys)
 
-        # Update ball position
+        # Update the ball position and powerups section to separate their updates
         if not game_over:
+            # Always update power-ups regardless of ball state
+            for power_up in power_ups[:]:  # Use slice to safely remove while iterating
+                power_up.update()
+                # Remove if fallen off screen
+                if power_up.y > HEIGHT:
+                    power_ups.remove(power_up)
+                # Check collision with paddle
+                elif paddle.rect.colliderect(power_up.rect):
+                    old_sticky = paddle.sticky
+                    lives = power_up.apply_effect(paddle, lives)
+                    if power_up.power_type == PowerUp.EXTRA_LIFE and sounds['life']:
+                        sounds['life'].play()  # Add distinct sound for extra life
+                    elif sounds['powerup']:
+                        sounds['powerup'].play()
+                    power_ups.remove(power_up)
+            
+            # Update ball position separately
             if ball.started:
                 ball.update()
             else:
@@ -114,13 +156,27 @@ def game_loop(screen):
                 ball.x = paddle.rect.centerx
                 ball.y = paddle.rect.top - ball.radius
 
+        # Check if ball should be released when sticky expires
+        if not game_over and ball.stuck_to_paddle and not paddle.sticky:
+            ball.start()  # Release ball with initial velocity
+
         # Only check collisions if ball is in motion
         if ball.started:
             # Ball collision with paddle
             if ball.get_rect().colliderect(paddle.rect):
-                ball.vel_y = -abs(ball.vel_y)  # Ensure ball goes upward
-                offset = (ball.x - paddle.rect.centerx) / (paddle.rect.width / 2)
-                ball.vel_x = ball.speed * offset
+                if paddle.sticky:
+                    if not ball.stuck_to_paddle:
+                        # Stick ball where it hits
+                        ball.stuck_to_paddle = True
+                        ball.started = False
+                        ball.vel_x = 0
+                        ball.vel_y = 0
+                        ball.y = paddle.rect.top - ball.radius - 2
+                        # ball.x remains where it landed
+                else:
+                    ball.vel_y = -abs(ball.vel_y)
+                    offset = (ball.x - paddle.rect.centerx) / (paddle.rect.width / 2)
+                    ball.vel_x = ball.speed * offset
 
             # Ball collision with bricks
             brick_hit = None
@@ -133,9 +189,36 @@ def game_loop(screen):
                 if brick_hit.hit():
                     bricks.remove(brick_hit)
                     score += 20 if brick_hit.brick_type == Brick.TOUGH else 10
-                ball.vel_y = -ball.vel_y  # Make sure ball bounces
+                    
+                    # Roll for powerup spawn
+                    if random.random() < sum(POWERUP_SPAWN_RATES.values()):
+                        power_type = random.choices(
+                            list(POWERUP_SPAWN_RATES.keys()),
+                            weights=list(POWERUP_SPAWN_RATES.values()),
+                            k=1
+                        )[0]
+                        spawn_x = max(20, min(brick_hit.rect.centerx, WIDTH - 20))
+                        power_up = PowerUp(spawn_x, brick_hit.rect.centery, power_type)
+                        power_ups.append(power_up)
+                        
+                ball.vel_y = -ball.vel_y
                 if sounds['ding']:
                     sounds['ding'].play()
+
+            # Check bullet collisions with bricks
+            for bullet in paddle.bullets[:]:
+                brick_hit = None
+                for brick in bricks:
+                    if bullet.rect.colliderect(brick.rect):
+                        brick_hit = brick
+                        break
+                if brick_hit:
+                    if brick_hit.hit():
+                        bricks.remove(brick_hit)
+                        score += 20 if brick_hit.brick_type == Brick.TOUGH else 10
+                    paddle.bullets.remove(bullet)
+                    if sounds['ding']:
+                        sounds['ding'].play()
 
         # Check game over conditions
         if ball.y - ball.radius > HEIGHT:
@@ -149,8 +232,9 @@ def game_loop(screen):
                 ball.x = paddle.rect.centerx
                 ball.y = paddle.rect.top - ball.radius
                 ball.started = False
-                ball.vel_x = 0  # Reset velocity
-                ball.vel_y = 0  # Reset velocity
+                ball.vel_x = 0
+                ball.vel_y = 0
+                paddle.rect.width = 100  # Reset paddle width to normal
                 
         # Level complete
         if not bricks:
@@ -174,6 +258,8 @@ def game_loop(screen):
             brick.draw(screen)
         paddle.draw(screen)
         ball.draw(screen)
+        for power_up in power_ups:
+            power_up.draw(screen)
 
         # Draw score, lives and level with better layout
         font = pygame.font.SysFont(None, 36)
@@ -191,6 +277,16 @@ def game_loop(screen):
         level_text = font.render(f'Level: {level}', True, WHITE)
         level_x = WIDTH - level_text.get_width() - 20
         screen.blit(level_text, (level_x, 20))
+
+        # Update paddle drawing to handle flashing
+        current_time = pygame.time.get_ticks()
+        if paddle_flash_timer and current_time - paddle_flash_timer < 500:  # Flash for 0.5 seconds
+            if (current_time // 100) % 2 == 0:
+                pygame.draw.rect(screen, YELLOW, paddle.rect)
+            else:
+                paddle.draw(screen)
+        else:
+            paddle.draw(screen)
 
         if game_over:
             # Get player name

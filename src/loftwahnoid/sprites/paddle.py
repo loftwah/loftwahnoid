@@ -3,8 +3,8 @@ from ..constants import WIDTH, WHITE, YELLOW, BLACK
 
 class Paddle:
     def __init__(self, x, y, width, height, speed):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.original_width = width
+        self.rect = pygame.Rect(x, y, width + 20, height + 5)  # Slightly larger paddle
+        self.original_width = width + 20  # Adjust original width
         self.speed = speed
         self.sticky = False
         self.sticky_timer = 0
@@ -52,11 +52,20 @@ class Paddle:
                 self.bullets.remove(bullet)
 
     def draw(self, screen):
-        pygame.draw.rect(screen, WHITE, self.rect)
-        font = pygame.font.SysFont(None, 20)
+        # Rounded rectangle with slight gradient
+        paddle_surface = pygame.Surface((self.rect.width, self.rect.height + 10), pygame.SRCALPHA)
+        pygame.draw.rect(paddle_surface, WHITE, (0, 0, self.rect.width, self.rect.height), border_radius=10)
+        pygame.draw.rect(paddle_surface, (200, 200, 200), (2, 2, self.rect.width - 4, self.rect.height - 4), border_radius=8)
+        screen.blit(paddle_surface, (self.rect.x, self.rect.y - 5))
+        
+        # Adjust font size based on paddle width
+        font_size = min(int(self.rect.width / 8), 16)  # Scale font with paddle width, max 16px
+        font = pygame.font.SysFont(None, font_size)
         text = font.render("Loftwahnoid", True, BLACK)
+        
+        # Center text on paddle
         text_x = self.rect.centerx - text.get_width() // 2
-        text_y = self.rect.centery - text.get_height() // 2
+        text_y = self.rect.centery - text.get_height() // 2 - 2  # Slight upward adjustment
         screen.blit(text, (text_x, text_y))
         
         # Original power-up indicators
